@@ -137,6 +137,24 @@
         </div>
     </div>
 
+    <!-- MODAL RIWAYAT -->
+    <div id="historyModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 text-sm">
+        <div class="bg-white w-full max-w-md rounded-[2rem] p-8 shadow-2xl max-h-[80vh] flex flex-col">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h3 class="text-lg font-black text-slate-800 leading-tight">Riwayat Peminjaman</h3>
+                    <p id="historyBookTitle" class="text-xs text-slate-400 font-bold uppercase tracking-wider mt-1">Judul Buku</p>
+                </div>
+                <button onclick="toggleModal('historyModal')" class="bg-slate-100 hover:bg-slate-200 w-8 h-8 rounded-full flex items-center justify-center transition-all">
+                    <i class="fas fa-times text-slate-500"></i>
+                </button>
+            </div>
+            <div id="historyList" class="overflow-y-auto flex-grow pr-2 custom-scrollbar space-y-2">
+                <!-- History items will be injected here -->
+            </div>
+        </div>
+    </div>
+
     <script>
         // MASUKKAN URL WEB APP GOOGLE APPS SCRIPT ANDA DI SINI
         const GAS_URL = "URL_WEB_APP_GOOGLE_SCRIPT_KAMU"; 
@@ -146,7 +164,7 @@
             console.log("Using Mock Data Mode");
             const originalFetch = window.fetch;
             window.fetch = async (url, options) => {
-                if (url !== GAS_URL) return originalFetch(url, options);
+                if (!url.startsWith(GAS_URL)) return originalFetch(url, options);
                 
                 await new Promise(r => setTimeout(r, 800)); // Simulate network delay
                 
@@ -169,6 +187,17 @@
                     }
                     // Handle Add/Delete
                     return { json: async () => ({ status: 'success' }) };
+                }
+
+                // Handle History Fetch
+                if (url.includes('type=history')) {
+                    return {
+                        json: async () => ([
+                            { peminjam: "Ahmad (2023001)", tanggalPinjam: "2023-10-01", tanggalKembali: "2023-10-05", status: "Kembali" },
+                            { peminjam: "Siti (2023002)", tanggalPinjam: "2023-10-10", tanggalKembali: null, status: "Dipinjam" },
+                            { peminjam: "Budi (2023005)", tanggalPinjam: "2023-09-15", tanggalKembali: "2023-09-20", status: "Kembali" }
+                        ].filter(() => Math.random() > 0.3)) // Randomize slightly
+                    };
                 }
                 
                 // Handle Get Books
@@ -284,6 +313,9 @@
                     <div class="flex gap-2 pt-4">
                         <button class="flex-1 bg-green-700 text-white text-[10px] font-black py-4 rounded-2xl hover:bg-green-800 transition-all shadow-md shadow-green-900/10">PINJAM</button>
                         ${currentRole === 'admin' ? `
+                            <button onclick="showHistory('${b.id}', '${b.judul.replace(/'/g, "\\'")}')" class="bg-blue-50 text-blue-500 w-12 rounded-2xl hover:bg-blue-500 hover:text-white transition-all flex items-center justify-center" title="Riwayat">
+                                <i class="fas fa-history text-sm"></i>
+                            </button>
                             <button onclick="deleteBook('${b.id}')" class="bg-red-50 text-red-500 w-12 rounded-2xl hover:bg-red-500 hover:text-white transition-all flex items-center justify-center">
                                 <i class="fas fa-trash-alt text-sm"></i>
                             </button>
@@ -291,6 +323,43 @@
                     </div>
                 </div>
             `).join('');
+        }
+
+        async function showHistory(id, title) {
+            document.getElementById('historyBookTitle').innerText = title;
+            const list = document.getElementById('historyList');
+            list.innerHTML = '<div class="text-center py-8"><div class="loader inline-block border-4 rounded-full h-8 w-8 border-t-blue-500"></div></div>';
+            toggleModal('historyModal');
+
+            try {
+                const res = await fetch(`${GAS_URL}?type=history&id=${id}`);
+                const data = await res.json();
+                
+                if(data.length === 0) {
+                    list.innerHTML = '<div class="text-center py-8 text-slate-400 text-xs font-bold uppercase">Belum ada riwayat peminjaman</div>';
+                    return;
+                }
+
+                list.innerHTML = data.map(h => `
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex justify-between items-center">
+                        <div>
+                            <p class="font-bold text-slate-700 text-sm">${h.peminjam}</p>
+                            <div class="flex gap-3 mt-1">
+                                <span class="text-[10px] text-slate-400 font-semibold"><i class="fas fa-calendar-alt mr-1"></i> Pinjam: ${h.tanggalPinjam}</span>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-tighter ${h.status === 'Dipinjam' ? 'bg-yellow-100 text-yellow-600' : 'bg-green-100 text-green-600'}">
+                                ${h.status}
+                            </span>
+                            ${h.tanggalKembali ? `<p class="text-[10px] text-slate-400 mt-1 font-semibold">Kembali: ${h.tanggalKembali}</p>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+
+            } catch(e) {
+                list.innerHTML = '<div class="text-center py-8 text-red-400 text-xs font-bold uppercase">Gagal memuat data</div>';
+            }
         }
 
         function handleSearch() {
