@@ -17,6 +17,14 @@ interface Book {
   status: string;
 }
 
+interface BorrowingHistory {
+  id: string | number;
+  peminjam: string;
+  tanggalPinjam: string;
+  tanggalKembali: string | null;
+  status: 'Dipinjam' | 'Dikembalikan';
+}
+
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState<User>({ nama: '', role: '' });
@@ -28,6 +36,12 @@ export default function App() {
   const [loginMsg, setLoginMsg] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  
+  // History states
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [selectedBookHistory, setSelectedBookHistory] = useState<BorrowingHistory[]>([]);
+  const [selectedBookTitle, setSelectedBookTitle] = useState('');
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   // Form states
   const [loginForm, setLoginForm] = useState({ nim: '', nama: '', user: '', pass: '' });
@@ -69,6 +83,37 @@ export default function App() {
       console.error("Gagal memuat data buku");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchHistory = async (bookId: string | number, bookTitle: string) => {
+    setSelectedBookTitle(bookTitle);
+    setShowHistoryModal(true);
+    setHistoryLoading(true);
+
+    try {
+      if (GAS_URL === "URL_WEB_APP_GOOGLE_SCRIPT_KAMU") {
+        await new Promise(resolve => setTimeout(resolve, 800));
+        // Mock history data
+        const mockHistory: BorrowingHistory[] = [
+          { id: 1, peminjam: "Ahmad Dahlan (2023001)", tanggalPinjam: "2023-10-01", tanggalKembali: "2023-10-08", status: 'Dikembalikan' },
+          { id: 2, peminjam: "Siti Aminah (2023045)", tanggalPinjam: "2023-11-15", tanggalKembali: null, status: 'Dipinjam' },
+          { id: 3, peminjam: "Budi Santoso (2023012)", tanggalPinjam: "2023-09-20", tanggalKembali: "2023-09-27", status: 'Dikembalikan' },
+        ];
+        // Randomize history for demo purposes based on bookId
+        const randomHistory = mockHistory.filter(() => Math.random() > 0.3);
+        setSelectedBookHistory(randomHistory);
+        setHistoryLoading(false);
+        return;
+      }
+
+      const res = await fetch(`${GAS_URL}?type=history&bookId=${bookId}`);
+      const data = await res.json();
+      setSelectedBookHistory(data);
+    } catch (error) {
+      console.error("Gagal memuat riwayat");
+    } finally {
+      setHistoryLoading(false);
     }
   };
 
@@ -315,9 +360,14 @@ export default function App() {
                 <div className="flex gap-2 pt-4">
                   <button className="flex-1 bg-green-700 text-white text-[10px] font-black py-4 rounded-2xl hover:bg-green-800 transition-all shadow-md shadow-green-900/10 uppercase">Pinjam</button>
                   {user.role === 'admin' && (
-                    <button onClick={() => deleteBook(book.id)} className="bg-red-50 text-red-500 w-12 rounded-2xl hover:bg-red-500 hover:text-white transition-all flex items-center justify-center">
-                      <i className="fas fa-trash-alt text-sm"></i>
-                    </button>
+                    <>
+                      <button onClick={() => fetchHistory(book.id, book.judul)} className="bg-blue-50 text-blue-500 w-12 rounded-2xl hover:bg-blue-500 hover:text-white transition-all flex items-center justify-center" title="Riwayat Peminjaman">
+                        <i className="fas fa-history text-sm"></i>
+                      </button>
+                      <button onClick={() => deleteBook(book.id)} className="bg-red-50 text-red-500 w-12 rounded-2xl hover:bg-red-500 hover:text-white transition-all flex items-center justify-center" title="Hapus Buku">
+                        <i className="fas fa-trash-alt text-sm"></i>
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
@@ -325,6 +375,56 @@ export default function App() {
           </div>
         )}
       </main>
+
+      {/* MODAL RIWAYAT PEMINJAMAN */}
+      {showHistoryModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="bg-white w-full max-w-2xl rounded-[2.5rem] p-8 shadow-2xl max-h-[80vh] flex flex-col">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-xl font-black text-slate-800 italic">Riwayat Peminjaman</h3>
+                <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">{selectedBookTitle}</p>
+              </div>
+              <button onClick={() => setShowHistoryModal(false)} className="bg-slate-100 hover:bg-slate-200 w-10 h-10 rounded-full flex items-center justify-center transition-all">
+                <i className="fas fa-times text-slate-500"></i>
+              </button>
+            </div>
+            
+            <div className="overflow-y-auto flex-grow pr-2 custom-scrollbar">
+              {historyLoading ? (
+                <div className="text-center py-10">
+                  <div className="inline-block border-4 border-t-blue-500 rounded-full h-8 w-8 animate-spin mb-2"></div>
+                  <p className="text-slate-400 text-[10px] font-bold uppercase">Memuat Riwayat...</p>
+                </div>
+              ) : selectedBookHistory.length > 0 ? (
+                <div className="space-y-3">
+                  {selectedBookHistory.map((hist) => (
+                    <div key={hist.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex justify-between items-center">
+                      <div>
+                        <p className="font-bold text-slate-700 text-sm">{hist.peminjam}</p>
+                        <div className="flex gap-3 mt-1">
+                          <span className="text-[10px] text-slate-400 font-semibold"><i className="fas fa-calendar-alt mr-1"></i> Pinjam: {hist.tanggalPinjam}</span>
+                          {hist.tanggalKembali && (
+                            <span className="text-[10px] text-slate-400 font-semibold"><i className="fas fa-check-circle mr-1"></i> Kembali: {hist.tanggalKembali}</span>
+                          )}
+                        </div>
+                      </div>
+                      <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-tighter ${hist.status === 'Dipinjam' ? 'bg-yellow-100 text-yellow-600' : 'bg-green-100 text-green-600'}`}>
+                        {hist.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-10 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
+                  <i className="fas fa-history text-4xl text-slate-200 mb-2"></i>
+                  <p className="text-slate-400 text-xs font-bold">Belum ada riwayat peminjaman</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL TAMBAH BUKU */}
       {showAddModal && (
