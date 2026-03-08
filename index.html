@@ -1,14 +1,332 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SmartBook UNUGHA</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartBook Perpustakaan UNUGHA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .glass { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+        .admin-only { display: none; }
+        .loader { border-top-color: #15803d; animation: spinner 1s linear infinite; }
+        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans text-slate-900">
 
+    <!-- LAYAR LOGIN -->
+    <div id="loginOverlay" class="fixed inset-0 z-[100] flex items-center justify-center bg-green-900 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] px-4">
+        <div class="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden">
+            <div class="bg-gradient-to-br from-green-700 to-green-900 p-10 text-center text-white">
+                <div class="inline-block bg-white/20 p-4 rounded-full mb-4">
+                    <i class="fas fa-university text-4xl"></i>
+                </div>
+                <h2 class="text-2xl font-black tracking-tight">SmartBook UNUGHA</h2>
+                <p class="text-green-100 text-xs mt-1 opacity-80 uppercase tracking-widest font-semibold">Digital Library Portal</p>
+            </div>
+            
+            <div class="flex bg-slate-100 p-1 m-6 rounded-2xl">
+                <button onclick="switchTab('mhs')" id="tabMhs" class="flex-1 py-3 text-xs font-bold rounded-xl transition-all bg-white shadow-sm text-green-700 uppercase">Mahasiswa</button>
+                <button onclick="switchTab('admin')" id="tabAdmin" class="flex-1 py-3 text-xs font-bold rounded-xl transition-all text-slate-500 uppercase">Admin Perpustakaan</button>
+            </div>
+
+            <div class="p-8 pt-0">
+                <div id="formMhs" class="space-y-4">
+                    <input type="text" id="nim" placeholder="NIM Mahasiswa" class="w-full p-4 border-2 border-slate-100 rounded-2xl focus:border-green-500 outline-none transition-all">
+                    <input type="text" id="namaMhs" placeholder="Nama Lengkap" class="w-full p-4 border-2 border-slate-100 rounded-2xl focus:border-green-500 outline-none transition-all">
+                </div>
+
+                <div id="formAdmin" class="hidden space-y-4">
+                    <input type="text" id="adminUser" placeholder="Username Admin" class="w-full p-4 border-2 border-slate-100 rounded-2xl focus:border-yellow-500 outline-none transition-all">
+                    <input type="password" id="adminPass" placeholder="Password" class="w-full p-4 border-2 border-slate-100 rounded-2xl focus:border-yellow-500 outline-none transition-all">
+                </div>
+                
+                <p id="loginMsg" class="text-red-500 text-[10px] mt-4 text-center font-bold uppercase tracking-widest min-h-[1rem]"></p>
+                <button onclick="doLogin()" id="btnLogin" class="w-full mt-6 bg-green-700 text-white font-black py-4 rounded-2xl hover:bg-green-800 shadow-xl shadow-green-900/20 transition-all active:scale-95">
+                    MASUK SEKARANG
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- APLIKASI UTAMA -->
+    <div id="mainApp" class="hidden min-h-screen flex flex-col">
+        <header class="glass sticky top-0 z-40 border-b border-slate-200">
+            <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div class="bg-green-700 text-white p-2.5 rounded-xl"><i class="fas fa-book-reader"></i></div>
+                    <div>
+                        <h1 class="font-black text-green-800 text-lg leading-none">SmartBook</h1>
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">UNUGHA Cilacap</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="text-right hidden sm:block">
+                        <p id="welcomeName" class="text-sm font-bold text-slate-800 leading-none"></p>
+                        <p id="userRole" class="text-[10px] font-bold text-green-600 uppercase tracking-widest"></p>
+                    </div>
+                    <button onclick="location.reload()" class="bg-slate-100 hover:bg-red-500 hover:text-white w-10 h-10 rounded-full transition-all flex items-center justify-center">
+                        <i class="fas fa-power-off"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- ADMIN BAR -->
+        <div id="adminBar" class="admin-only bg-yellow-400 py-3 shadow-inner">
+            <div class="container mx-auto px-4 flex justify-between items-center">
+                <span class="text-xs font-black text-yellow-900"><i class="fas fa-user-shield mr-2"></i> KONTROL ADMINISTRATOR</span>
+                <button onclick="toggleModal('addBookModal')" class="bg-white text-yellow-700 text-[10px] font-black px-4 py-2 rounded-lg shadow-sm hover:bg-yellow-50">
+                    <i class="fas fa-plus mr-1"></i> TAMBAH BUKU
+                </button>
+            </div>
+        </div>
+
+        <!-- SEARCH SECTION -->
+        <section class="bg-green-800 py-16 px-4">
+            <div class="container mx-auto max-w-2xl text-center">
+                <h2 class="text-3xl font-black text-white mb-2">Perpustakaan Pintar</h2>
+                <p class="text-green-200 text-sm mb-8">Temukan buku, kitab, dan referensi akademik lainnya</p>
+                <div class="relative">
+                    <input type="text" id="searchInput" oninput="handleSearch()" placeholder="Cari judul, penulis, atau kategori..." class="w-full p-5 pl-14 rounded-2xl shadow-2xl focus:ring-4 focus:ring-white/20 outline-none text-slate-700 text-lg">
+                    <i class="fas fa-search absolute left-5 top-6 text-slate-300 text-xl"></i>
+                </div>
+            </div>
+        </section>
+
+        <!-- GRID BUKU -->
+        <main class="container mx-auto px-4 py-12 flex-grow">
+            <div id="loadingInfo" class="text-center py-10">
+                <div class="loader inline-block border-4 rounded-full h-10 w-10 mb-2"></div>
+                <p class="text-slate-400 text-xs font-bold uppercase tracking-widest">Sinkronisasi Database...</p>
+            </div>
+            <div id="bookGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 hidden">
+                <!-- Card render here -->
+            </div>
+        </main>
+
+        <footer class="bg-white border-t border-slate-200 py-8 text-center">
+            <p class="text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em]">&copy; 2026 UNUGHA Cilacap - Smart Library System</p>
+        </footer>
+    </div>
+
+    <!-- MODAL TAMBAH BUKU -->
+    <div id="addBookModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 text-sm">
+        <div class="bg-white w-full max-w-md rounded-[2rem] p-10 shadow-2xl">
+            <div class="text-center mb-8">
+                <i class="fas fa-book-medical text-green-600 text-3xl mb-2"></i>
+                <h3 class="text-xl font-black text-slate-800 leading-tight">Input Koleksi Baru</h3>
+            </div>
+            <div class="space-y-4">
+                <input type="text" id="newJudul" placeholder="Judul Lengkap Buku" class="w-full p-4 border-2 border-slate-100 rounded-2xl outline-none focus:border-green-600 transition-all">
+                <input type="text" id="newPenulis" placeholder="Nama Penulis" class="w-full p-4 border-2 border-slate-100 rounded-2xl outline-none focus:border-green-600 transition-all">
+                <select id="newKat" class="w-full p-4 border-2 border-slate-100 rounded-2xl outline-none focus:border-green-600 appearance-none bg-slate-50">
+                    <option>Teknik Informatika</option>
+                    <option>Pendidikan Agama Islam</option>
+                    <option>Ekonomi & Bisnis</option>
+                    <option>Hukum & Syariah</option>
+                    <option>Umum / Referensi</option>
+                </select>
+                <input type="number" id="newStok" placeholder="Jumlah Stok Fisik" class="w-full p-4 border-2 border-slate-100 rounded-2xl outline-none focus:border-green-600 transition-all">
+            </div>
+            <div class="flex gap-4 mt-10">
+                <button onclick="toggleModal('addBookModal')" class="flex-1 bg-slate-100 py-4 rounded-2xl font-bold text-slate-500 hover:bg-slate-200 transition-all uppercase text-xs">Batal</button>
+                <button onclick="saveBook()" class="flex-1 bg-green-700 text-white py-4 rounded-2xl font-bold shadow-lg shadow-green-900/20 hover:bg-green-800 transition-all uppercase text-xs">Simpan Data</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // MASUKKAN URL WEB APP GOOGLE APPS SCRIPT ANDA DI SINI
+        const GAS_URL = "URL_WEB_APP_GOOGLE_SCRIPT_KAMU"; 
+        
+        // --- MOCK DATA IMPLEMENTATION (Added to ensure no errors with placeholder URL) ---
+        if (GAS_URL === "URL_WEB_APP_GOOGLE_SCRIPT_KAMU") {
+            console.log("Using Mock Data Mode");
+            const originalFetch = window.fetch;
+            window.fetch = async (url, options) => {
+                if (url !== GAS_URL) return originalFetch(url, options);
+                
+                await new Promise(r => setTimeout(r, 800)); // Simulate network delay
+                
+                // Handle Login
+                if (options && options.method === 'POST') {
+                    const body = JSON.parse(options.body);
+                    if (body.type === 'login_mhs' || body.type === 'login_admin') {
+                        // Simple mock login validation
+                        if ((body.type === 'login_mhs' && body.nim && body.nama) || 
+                            (body.type === 'login_admin' && body.user === 'admin')) {
+                            return {
+                                json: async () => ({
+                                    status: 'success',
+                                    role: body.type === 'login_mhs' ? 'mahasiswa' : 'admin',
+                                    nama: body.type === 'login_mhs' ? body.nama : 'Administrator'
+                                })
+                            };
+                        }
+                        return { json: async () => ({ status: 'failed' }) };
+                    }
+                    // Handle Add/Delete
+                    return { json: async () => ({ status: 'success' }) };
+                }
+                
+                // Handle Get Books
+                return {
+                    json: async () => ([
+                        { id: 1, judul: "Pemrograman Web Modern", penulis: "Eko Kurniawan", kategori: "Teknik Informatika", stok: 5, status: "Tersedia" },
+                        { id: 2, judul: "Algoritma & Struktur Data", penulis: "Rinaldi Munir", kategori: "Teknik Informatika", stok: 3, status: "Tersedia" },
+                        { id: 3, judul: "Metodologi Penelitian", penulis: "Sugiyono", kategori: "Umum", stok: 0, status: "Dipinjam" },
+                        { id: 4, judul: "Fiqih Muamalah", penulis: "Wahbah Az-Zuhaili", kategori: "Pendidikan Agama Islam", stok: 2, status: "Tersedia" },
+                        { id: 5, judul: "Sistem Basis Data", penulis: "Fathansyah", kategori: "Teknik Informatika", stok: 4, status: "Tersedia" }
+                    ])
+                };
+            };
+        }
+        // --- END MOCK DATA ---
+
+        let currentRole = 'user';
+        let allBooks = [];
+        let activeTab = 'mhs';
+
+        function switchTab(t) {
+            activeTab = t;
+            const isMhs = t === 'mhs';
+            document.getElementById('formMhs').classList.toggle('hidden', !isMhs);
+            document.getElementById('formAdmin').classList.toggle('hidden', isMhs);
+            
+            document.getElementById('tabMhs').className = isMhs ? "flex-1 py-3 text-xs font-bold rounded-xl transition-all bg-white shadow-sm text-green-700 uppercase" : "flex-1 py-3 text-xs font-bold rounded-xl transition-all text-slate-500 uppercase";
+            document.getElementById('tabAdmin').className = !isMhs ? "flex-1 py-3 text-xs font-bold rounded-xl transition-all bg-white shadow-sm text-yellow-700 uppercase" : "flex-1 py-3 text-xs font-bold rounded-xl transition-all text-slate-500 uppercase";
+            
+            document.getElementById('btnLogin').className = isMhs ? "w-full mt-6 bg-green-700 text-white font-black py-4 rounded-2xl hover:bg-green-800 shadow-xl transition-all active:scale-95" : "w-full mt-6 bg-yellow-600 text-white font-black py-4 rounded-2xl hover:bg-yellow-700 shadow-xl transition-all active:scale-95";
+        }
+
+        async function doLogin() {
+            const btn = document.getElementById('btnLogin');
+            const msg = document.getElementById('loginMsg');
+            const nimVal = document.getElementById('nim').value;
+            const namaVal = document.getElementById('namaMhs').value;
+            const userVal = document.getElementById('adminUser').value;
+            const passVal = document.getElementById('adminPass').value;
+
+            if(activeTab === 'mhs' && (!nimVal || !namaVal)) return msg.innerText = "Isi NIM dan Nama!";
+            if(activeTab === 'admin' && (!userVal || !passVal)) return msg.innerText = "Isi Username dan Password!";
+
+            btn.innerText = "MENGOTENTIKASI...";
+            btn.disabled = true;
+            msg.innerText = "";
+
+            let payload = { type: activeTab === 'mhs' ? 'login_mhs' : 'login_admin' };
+            if(activeTab === 'mhs') {
+                payload.nim = nimVal;
+                payload.nama = namaVal;
+            } else {
+                payload.user = userVal;
+                payload.pass = passVal;
+            }
+
+            try {
+                const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) });
+                const data = await res.json();
+
+                if(data.status === 'success') {
+                    currentRole = data.role;
+                    document.getElementById('loginOverlay').classList.add('hidden');
+                    document.getElementById('mainApp').classList.remove('hidden');
+                    document.getElementById('welcomeName').innerText = "Ahlan, " + data.nama;
+                    document.getElementById('userRole').innerText = data.role;
+                    if(data.role === 'admin') {
+                        document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'block');
+                    }
+                    fetchBooks();
+                } else {
+                    msg.innerText = "LOGIN GAGAL! DATA TIDAK COCOK.";
+                }
+            } catch(e) {
+                msg.innerText = "ERROR: SERVER TIDAK MERESPON.";
+            } finally {
+                btn.innerText = "MASUK SEKARANG";
+                btn.disabled = false;
+            }
+        }
+
+        async function fetchBooks() {
+            try {
+                const res = await fetch(GAS_URL);
+                allBooks = await res.json();
+                document.getElementById('loadingInfo').classList.add('hidden');
+                document.getElementById('bookGrid').classList.remove('hidden');
+                renderBooks(allBooks);
+            } catch(e) {
+                console.error("Gagal load buku");
+            }
+        }
+
+        function renderBooks(data) {
+            const grid = document.getElementById('bookGrid');
+            if(data.length === 0) {
+                grid.innerHTML = '<div class="col-span-full py-20 text-center text-slate-400 font-bold uppercase tracking-widest">Tidak ada koleksi ditemukan</div>';
+                return;
+            }
+            grid.innerHTML = data.map(b => `
+                <div class="bg-white p-7 rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-2xl transition-all group flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-start mb-5">
+                            <span class="text-[9px] font-black text-green-700 bg-green-50 px-3 py-1 rounded-full uppercase border border-green-100 tracking-tighter">${b.kategori}</span>
+                            <span class="text-[9px] font-bold ${b.status === 'Tersedia' ? 'text-blue-500' : 'text-red-500'} italic flex items-center gap-1 uppercase tracking-tighter">
+                                <span class="h-1.5 w-1.5 rounded-full ${b.status === 'Tersedia' ? 'bg-blue-500 animate-pulse' : 'bg-red-500'}"></span> ${b.status}
+                            </span>
+                        </div>
+                        <h3 class="font-bold text-slate-800 leading-tight mb-2 text-lg">${b.judul}</h3>
+                        <p class="text-xs text-slate-400 mb-6 font-semibold">${b.penulis}</p>
+                    </div>
+                    
+                    <div class="flex gap-2 pt-4">
+                        <button class="flex-1 bg-green-700 text-white text-[10px] font-black py-4 rounded-2xl hover:bg-green-800 transition-all shadow-md shadow-green-900/10">PINJAM</button>
+                        ${currentRole === 'admin' ? `
+                            <button onclick="deleteBook('${b.id}')" class="bg-red-50 text-red-500 w-12 rounded-2xl hover:bg-red-500 hover:text-white transition-all flex items-center justify-center">
+                                <i class="fas fa-trash-alt text-sm"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function handleSearch() {
+            const q = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = allBooks.filter(b => 
+                b.judul.toLowerCase().includes(q) || 
+                b.penulis.toLowerCase().includes(q) || 
+                b.kategori.toLowerCase().includes(q)
+            );
+            renderBooks(filtered);
+        }
+
+        function toggleModal(id) {
+            document.getElementById(id).classList.toggle('hidden');
+        }
+
+        async function saveBook() {
+            const payload = {
+                type: 'add_book',
+                judul: document.getElementById('newJudul').value,
+                penulis: document.getElementById('newPenulis').value,
+                kategori: document.getElementById('newKat').value,
+                stok: document.getElementById('newStok').value
+            };
+            if(!payload.judul || !payload.penulis) return alert('Lengkapi data buku!');
+            
+            await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) });
+            toggleModal('addBookModal');
+            fetchBooks();
+        }
+
+        async function deleteBook(id) {
+            if(!confirm('Hapus koleksi ini secara permanen?')) return;
+            await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({type: 'delete_book', id: id}) });
+            fetchBooks();
+        }
+    </script>
+</body>
+</html>
