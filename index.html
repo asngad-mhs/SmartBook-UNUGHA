@@ -517,7 +517,13 @@
                     </div>
                     
                     <div class="flex gap-2 pt-4">
-                        <button class="flex-1 bg-green-700 text-white text-[10px] font-black py-4 rounded-2xl hover:bg-green-800 transition-all shadow-md shadow-green-900/10">PINJAM</button>
+                        <button 
+                            onclick="openBorrowModal('${b.judul.replace(/'/g, "\\'")}')" 
+                            class="flex-1 text-white text-[10px] font-black py-4 rounded-2xl transition-all shadow-md uppercase active:scale-95 ${b.status === 'Tersedia' ? 'bg-green-700 hover:bg-green-800 shadow-green-900/10' : 'bg-slate-300 cursor-not-allowed'}"
+                            ${b.status !== 'Tersedia' ? 'disabled' : ''}
+                        >
+                            ${b.status === 'Tersedia' ? 'PINJAM' : 'DIPINJAM'}
+                        </button>
                         ${currentRole === 'admin' ? `
                             <button onclick="showHistory('${b.id}', '${b.judul.replace(/'/g, "\\'")}')" class="bg-blue-50 text-blue-500 w-12 rounded-2xl hover:bg-blue-500 hover:text-white transition-all flex items-center justify-center" title="Riwayat">
                                 <i class="fas fa-history text-sm"></i>
@@ -529,6 +535,23 @@
                     </div>
                 </div>
             `).join('');
+        }
+
+        function openBorrowModal(title) {
+            toggleModal('borrowModal');
+            // Wait for modal to populate
+            setTimeout(() => {
+                const select = document.getElementById('borrowBookId');
+                // Check if book exists in options (might be unavailable)
+                const optionExists = [...select.options].some(o => o.value === title);
+                if(optionExists) {
+                    select.value = title;
+                } else {
+                    // If book is not available (not in list), maybe alert or reset
+                    // But renderBooks only shows status. If status is not 'Tersedia', maybe disable button?
+                    // Let's handle that in renderBooks actually.
+                }
+            }, 50);
         }
 
         async function showHistory(id, title) {
