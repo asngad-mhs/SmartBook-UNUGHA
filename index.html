@@ -110,10 +110,15 @@
             </div>
 
             <div class="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 p-8">
-                <h3 class="text-lg font-black text-slate-800 mb-6 flex items-center gap-2">
-                    <i class="fas fa-list-alt text-green-600"></i> 
-                    <span id="dashboardListTitle">Peminjaman Saya</span>
-                </h3>
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-lg font-black text-slate-800 flex items-center gap-2">
+                        <i class="fas fa-list-alt text-green-600"></i> 
+                        <span id="dashboardListTitle">Peminjaman Saya</span>
+                    </h3>
+                    <button onclick="toggleModal('borrowModal')" class="bg-green-700 text-white text-[10px] font-black px-4 py-2 rounded-lg shadow-sm hover:bg-green-800 transition-all uppercase">
+                        <i class="fas fa-plus mr-1"></i> Ajukan Pinjaman
+                    </button>
+                </div>
                 <div id="dashboardList" class="space-y-4">
                     <!-- List items injected here -->
                     <div class="text-center py-10 text-slate-400 text-xs font-bold uppercase">Memuat data...</div>
@@ -122,7 +127,7 @@
         </div>
 
         <!-- VIEW: BOOKS (Existing Content Wrapped) -->
-        <div id="viewBooks" class="flex-grow flex flex-col">
+        <div id="viewBooks" class="flex-grow flex flex-col hidden">
             <!-- ADMIN BAR -->
             <div id="adminBar" class="admin-only bg-yellow-400 py-3 shadow-inner">
                 <div class="container mx-auto px-4 flex justify-between items-center">
@@ -206,6 +211,79 @@
         </div>
     </div>
 
+    <!-- MODAL AJUKAN PINJAMAN -->
+    <div id="borrowModal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 text-sm">
+        <div class="bg-white w-full max-w-md rounded-[2rem] p-10 shadow-2xl">
+            <div class="text-center mb-8">
+                <i class="fas fa-hand-holding-heart text-green-600 text-3xl mb-2"></i>
+                <h3 class="text-xl font-black text-slate-800 leading-tight">Form Peminjaman</h3>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-2">Judul Buku</label>
+                    <select id="borrowBookId" class="w-full p-4 border-2 border-slate-100 rounded-2xl outline-none focus:border-green-600 appearance-none bg-slate-50 mt-1">
+                        <option value="">Pilih Buku...</option>
+                        <!-- Options populated by JS -->
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-2">Tanggal Pinjam</label>
+                    <input type="date" id="borrowDate" class="w-full p-4 border-2 border-slate-100 rounded-2xl outline-none focus:border-green-600 transition-all mt-1">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-2">Durasi (Hari)</label>
+                    <select id="borrowDuration" class="w-full p-4 border-2 border-slate-100 rounded-2xl outline-none focus:border-green-600 appearance-none bg-slate-50 mt-1">
+                        <option value="3">3 Hari</option>
+                        <option value="7">7 Hari (1 Minggu)</option>
+                        <option value="14">14 Hari (2 Minggu)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex gap-4 mt-10">
+                <button onclick="toggleModal('borrowModal')" class="flex-1 bg-slate-100 py-4 rounded-2xl font-bold text-slate-500 hover:bg-slate-200 transition-all uppercase text-xs">Batal</button>
+                <button onclick="submitBorrow()" class="flex-1 bg-green-700 text-white py-4 rounded-2xl font-bold shadow-lg shadow-green-900/20 hover:bg-green-800 transition-all uppercase text-xs">Ajukan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PRINT LAYOUT (Hidden on screen) -->
+    <div id="printArea" class="hidden print:block fixed inset-0 bg-white z-[200] p-8">
+        <div class="border-4 border-double border-slate-800 p-8 h-full flex flex-col justify-between">
+            <div class="text-center border-b-2 border-slate-800 pb-4">
+                <h1 class="text-2xl font-black uppercase tracking-widest">Bukti Peminjaman</h1>
+                <p class="text-sm font-bold">Perpustakaan UNUGHA Cilacap</p>
+            </div>
+            
+            <div class="flex-grow py-8 space-y-6">
+                <div class="flex justify-between">
+                    <span class="font-bold">No. Transaksi:</span>
+                    <span class="font-mono" id="printId">TRX-0000</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="font-bold">Peminjam:</span>
+                    <span id="printName">-</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="font-bold">Judul Buku:</span>
+                    <span id="printBook">-</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="font-bold">Tanggal Pinjam:</span>
+                    <span id="printDate">-</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="font-bold">Tenggat Kembali:</span>
+                    <span id="printReturn">-</span>
+                </div>
+            </div>
+
+            <div class="text-center text-xs uppercase font-bold border-t-2 border-slate-800 pt-4">
+                Harap simpan bukti ini saat pengembalian buku.
+                <br>Terima kasih telah membaca.
+            </div>
+        </div>
+    </div>
+
     <script>
         // MASUKKAN URL WEB APP GOOGLE APPS SCRIPT ANDA DI SINI
         const GAS_URL = "URL_WEB_APP_GOOGLE_SCRIPT_KAMU"; 
@@ -219,6 +297,14 @@
                 
                 await new Promise(r => setTimeout(r, 800)); // Simulate network delay
                 
+                // Handle Borrow Book
+                if (options && options.method === 'POST') {
+                    const body = JSON.parse(options.body);
+                    if (body.type === 'borrow_book') {
+                        return { json: async () => ({ status: 'success', trxId: 'TRX-' + Math.floor(Math.random() * 10000) }) };
+                    }
+                }
+
                 // Handle Login
                 if (options && options.method === 'POST') {
                     const body = JSON.parse(options.body);
@@ -493,7 +579,75 @@
         }
 
         function toggleModal(id) {
-            document.getElementById(id).classList.toggle('hidden');
+            const modal = document.getElementById(id);
+            modal.classList.toggle('hidden');
+            
+            // Populate books if opening borrow modal
+            if (id === 'borrowModal' && !modal.classList.contains('hidden')) {
+                const select = document.getElementById('borrowBookId');
+                // Only showing available books
+                const availableBooks = allBooks.filter(b => b.status === 'Tersedia');
+                select.innerHTML = '<option value="">Pilih Buku...</option>' + 
+                    availableBooks.map(b => `<option value="${b.judul}">${b.judul}</option>`).join('');
+                
+                // Set default date to today
+                document.getElementById('borrowDate').valueAsDate = new Date();
+            }
+        }
+
+        async function submitBorrow() {
+            const bookTitle = document.getElementById('borrowBookId').value;
+            const date = document.getElementById('borrowDate').value;
+            const duration = parseInt(document.getElementById('borrowDuration').value);
+            
+            if(!bookTitle || !date) return alert('Lengkapi data peminjaman!');
+
+            // Calculate return date
+            const returnDate = new Date(date);
+            returnDate.setDate(returnDate.getDate() + duration);
+            const returnDateStr = returnDate.toISOString().split('T')[0];
+
+            const btn = document.querySelector('#borrowModal button:last-child');
+            const originalText = btn.innerText;
+            btn.innerText = "Memproses...";
+            btn.disabled = true;
+
+            try {
+                const payload = {
+                    type: 'borrow_book',
+                    bookTitle: bookTitle,
+                    date: date,
+                    duration: duration,
+                    user: document.getElementById('welcomeName').innerText.replace('Ahlan, ', '')
+                };
+
+                const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) });
+                const data = await res.json();
+
+                if(data.status === 'success') {
+                    toggleModal('borrowModal');
+                    
+                    // Prepare Print
+                    document.getElementById('printId').innerText = data.trxId;
+                    document.getElementById('printName').innerText = payload.user;
+                    document.getElementById('printBook').innerText = bookTitle;
+                    document.getElementById('printDate').innerText = date;
+                    document.getElementById('printReturn').innerText = returnDateStr;
+
+                    // Trigger Print
+                    setTimeout(() => {
+                        window.print();
+                        loadDashboard(); // Refresh dashboard
+                    }, 500);
+                } else {
+                    alert('Gagal mengajukan peminjaman.');
+                }
+            } catch(e) {
+                alert('Terjadi kesalahan koneksi.');
+            } finally {
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
         }
 
         async function saveBook() {
